@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Designer Studio - Site Synthesizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+    <link href="style.css" rel="stylesheet"/>
+</head>
+<body>
+
+
+    <div id="mobile-blocker">
+    <div class="blocker-card">
+        <span class="material-symbols-outlined blocker-icon">desktop_windows</span>
+        <h2>Desktop Only Interface</h2>
+        <p>Site Synthesizer requires a minimum screen width of 1024px (Laptop/Desktop) to run the workspace efficiently.</p>
+    </div>
+</div>
+
+    <header class="top-navbar">
+        <div class="nav-left">
+            <div class="brand">
+                <span class="material-symbols-outlined" style="font-size: 24px;">palette</span>
+                <h1 class="brand-title">Designer Studio</h1>
+            </div>
+            <a href="index.html" class="btn-back">
+                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_back</span>
+                Back
+            </a>
+        </div>
+
+        <div class="nav-center">
+            <button type="button" class="tab-btn active" data-tab="live">Live Preview</button>
+            <button type="button" class="tab-btn" data-tab="code">View Code</button>
+        </div>
+
+        <div class="nav-right">
+            <button type="button" id="copy-code-btn" class="btn-action-sec">
+                <span class="material-symbols-outlined">content_copy</span>
+                Copy Code
+            </button>
+            <button type="button" id="download-btn" class="btn-export">
+                <span class="material-symbols-outlined">download</span>
+                Download HTML
+            </button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <form id="designer-form">
+                <div class="form-group">
+                    <label for="company-name">Project / Brand Name</label>
+                    <input type="text" id="company-name" value="Apex Studio" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="raw-links">Reference Site URLs (Optional)</label>
+                    <textarea id="raw-links" rows="2" placeholder="Paste website links here (one per line or separated by spaces/commas)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="github-url">GitHub Repository URL (Optional)</label>
+                    <input type="url" id="github-url" placeholder="https://github.com/user/repo">
+                </div>
+
+                <div class="form-group">
+                    <label for="design-images">Reference Images / UI Screenshots (Optional)</label>
+                    <input type="file" id="design-images" accept="image/*" multiple>
+                </div>
+
+                <div class="form-group">
+                    <label for="project-zip">Upload Source Code ZIP (Optional)</label>
+                    <input type="file" id="project-zip" accept=".zip">
+                </div>
+
+                <div class="form-group">
+                    <label for="fusion-prompt">Design Vision & Instructions</label>
+                    <textarea id="fusion-prompt" rows="4" placeholder="Describe what you want to create or edit. Mention specific pages, navbar styles, section layouts, or features..." required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Primary Color</label>
+                        <div class="color-picker-input-group">
+                            <input type="color" id="primary-color" value="#6366f1" oninput="document.getElementById('primary-hex').value = this.value">
+                            <input type="text" id="primary-hex" class="color-hex-text" value="#6366f1" maxlength="7" oninput="if(/^#[0-9A-F]{6}$/i.test(this.value)) document.getElementById('primary-color').value = this.value">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Accent Color</label>
+                        <div class="color-picker-input-group">
+                            <input type="color" id="secondary-color" value="#a855f7" oninput="document.getElementById('accent-hex').value = this.value">
+                            <input type="text" id="accent-hex" class="color-hex-text" value="#a855f7" maxlength="7" oninput="if(/^#[0-9A-F]{6}$/i.test(this.value)) document.getElementById('secondary-color').value = this.value">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary" style="flex: 2;">✨ Generate Design</button>
+                    <button type="button" id="reset-btn" class="btn-secondary" style="flex: 1;">🧹 Reset</button>
+                </div>
+            </form>
+
+            <div id="status-message" class="status-box hidden"></div>
+        </aside>
+
+        <main class="workspace">
+            <div class="preview-window">
+                <div class="preview-header-bar">
+                    <div class="window-controls">
+                        <div class="window-dot dot-red"></div>
+                        <div class="window-dot dot-yellow"></div>
+                        <div class="window-dot dot-green"></div>
+                    </div>
+                    <div class="url-bar">
+                        <span class="material-symbols-outlined" style="font-size: 14px;">edit_note</span>
+                        <span class="url-text">designer-studio.canvas.preview</span>
+                    </div>
+                    <div style="width: 80px;"></div>
+                </div>
+
+                <div class="tab-content active" id="live-tab">
+                    <iframe id="preview-frame" title="Live Preview"></iframe>
+                </div>
+
+                <div class="tab-content" id="code-tab">
+                    <pre><code id="code-output"></code></pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="designer.js"></script>
+</body>
+</html>

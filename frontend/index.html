@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>AI Site Synthesizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="./style1.css">
+</head>
+<body>
+
+    <div id="mobile-blocker">
+    <div class="blocker-card">
+        <span class="material-symbols-outlined blocker-icon">desktop_windows</span>
+        <h2>Desktop Only Interface</h2>
+        <p>Site Synthesizer requires a minimum screen width of 1024px (Laptop/Desktop) to run the workspace efficiently.</p>
+    </div>
+</div>
+
+    <!-- Header Navigation -->
+    <header class="top-navbar">
+        <div class="nav-left">
+            <div class="brand">
+                <span class="material-symbols-outlined" style="font-size: 24px;">bolt</span>
+                <h1 class="brand-title">Site Synthesizer</h1>
+            </div>
+            <a href="designer.html" class="btn-studio">
+                <span class="material-symbols-outlined" style="font-size: 16px; color: #818cf8;">palette</span>
+                Designer Studio
+            </a>
+        </div>
+
+        <div class="nav-center">
+            <button type="button" class="tab-btn active" data-tab="live">Live Preview</button>
+            <button type="button" class="tab-btn" data-tab="code">View Code</button>
+        </div>
+
+        <div class="nav-right">
+            <button type="button" id="copy-code-btn" class="btn-action-sec">
+                <span class="material-symbols-outlined">content_copy</span>
+                Copy Code
+            </button>
+            <button type="button" id="download-btn" class="btn-export">
+                <span class="material-symbols-outlined">download</span>
+                Download HTML
+            </button>
+        </div>
+    </header>
+
+    <!-- Workspace Area -->
+    <div class="main-container">
+        <!-- Configuration Form Sidebar -->
+        <aside class="sidebar">
+            <form id="synthesizer-form" style="display: flex; flex-direction: column; gap: 24px; height: 100%;">
+                <div class="section">
+                    <div class="form-group">
+                        <label class="label" for="company-name">Project Identity</label>
+                        <input class="input-text" id="company-name" placeholder="Company/App Name..." type="text" value="NovaApp" required/>
+                    </div>
+                    <div class="form-group">
+                        <label class="label" for="company-about">Prompt / Feature Request</label>
+                        <textarea class="textarea-field" id="company-about" placeholder="e.g., Create a hero section with a landing page, or add a dark mode toggle..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="adv-config">
+                    <label class="label muted">Advanced Configuration</label>
+                    
+                    <div class="form-group">
+                        <span class="sub-label">GitHub Repository URL (Optional)</span>
+                        <input class="input-text input-sm" id="github-url" placeholder="https://github.com/user/repo" type="url"/>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="sub-label">Upload Project ZIP (Optional)</span>
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="project-zip" accept=".zip"/>
+                            <div class="file-upload">
+                                <span class="material-symbols-outlined icon">upload_file</span>
+                                <span class="text">Click to browse or drag and drop ZIP</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="sub-label">Brand Colors</span>
+                        <div class="color-grid">
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="primary-color" value="#2563eb" onchange="document.getElementById('primary-swatch').style.backgroundColor = this.value"/>
+                                <div class="color-picker-left">
+                                    <div class="color-swatch" id="primary-swatch" style="background-color: #2563eb;"></div>
+                                    <span class="color-label">Primary</span>
+                                </div>
+                                <span class="material-symbols-outlined" style="font-size: 14px; opacity: 0.6;">expand_more</span>
+                            </div>
+
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="secondary-color" value="#38bdf8" onchange="document.getElementById('accent-swatch').style.backgroundColor = this.value"/>
+                                <div class="color-picker-left">
+                                    <div class="color-swatch" id="accent-swatch" style="background-color: #38bdf8;"></div>
+                                    <span class="color-label">Accent</span>
+                                </div>
+                                <span class="material-symbols-outlined" style="font-size: 14px; opacity: 0.6;">expand_more</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="status-message" class="status-box hidden"></div>
+
+                <div class="sidebar-actions">
+                    <button type="submit" class="btn-primary">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">auto_awesome</span>
+                        Synthesize
+                    </button>
+                    <button type="button" id="reset-btn" class="btn-secondary">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
+                        Reset
+                    </button>
+                </div>
+            </form>
+        </aside>
+
+        <!-- Dynamic Output Canvas -->
+        <main class="preview-area">
+            <div class="preview-wrapper">
+                <div class="preview-window">
+                    <div class="preview-header">
+                        <div class="window-controls">
+                            <div class="window-dot dot-red"></div>
+                            <div class="window-dot dot-yellow"></div>
+                            <div class="window-dot dot-green"></div>
+                        </div>
+                        <div class="url-bar">
+                            <span class="material-symbols-outlined" style="font-size: 14px;">lock</span>
+                            <span class="url-text">nova-app-preview.synthesizer.ai</span>
+                        </div>
+                        <div style="width: 80px;"></div>
+                    </div>
+
+                    <div class="tab-content active" id="live-tab">
+                        <iframe id="preview-frame" title="Live Preview"></iframe>
+                    </div>
+
+                    <div class="tab-content" id="code-tab">
+                        <pre><code id="code-output"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
