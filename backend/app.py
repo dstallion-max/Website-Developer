@@ -9,11 +9,12 @@ from git import Repo
 from google import genai
 from google.genai import types
 
-# Define absolute paths based on working directory
+# Define absolute paths based on directory structure
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
-app = Flask(__name__, static_folder=BASE_DIR)
+app = Flask(__name__, static_folder=FRONTEND_DIR)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -38,13 +39,13 @@ Return ONLY valid HTML starting with <!DOCTYPE html>. Do NOT wrap in markdown co
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
-    if path != "" and os.path.exists(os.path.join(BASE_DIR, path)):
-        return send_from_directory(BASE_DIR, path)
-    return send_from_directory(BASE_DIR, 'index.html')
+    if path != "" and os.path.exists(os.path.join(FRONTEND_DIR, path)):
+        return send_from_directory(FRONTEND_DIR, path)
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 @app.route('/designer')
 def serve_designer():
-    return send_from_directory(BASE_DIR, 'designer.html')
+    return send_from_directory(FRONTEND_DIR, 'designer.html')
 
 
 def extract_urls(text):
