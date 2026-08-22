@@ -9,15 +9,15 @@ from git import Repo
 from google import genai
 from google.genai import types
 
-# Set the repository root directory (one folder up from /backend) as static root
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Define absolute paths based on working directory
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
 
-app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
+app = Flask(__name__, static_folder=BASE_DIR)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# Enhanced system prompt designed for realistic, self-contained standalone HTML
 REALISTIC_DESIGN_SYSTEM_PROMPT = """
 You are a Principal Frontend Engineer & UI/UX Director.
 Your job is to produce a fully self-contained, high-fidelity, production-grade HTML5 file that looks like a live SaaS/E-commerce product when saved and opened locally in any browser.
@@ -34,18 +34,17 @@ OUTPUT RULE:
 Return ONLY valid HTML starting with <!DOCTYPE html>. Do NOT wrap in markdown code fences (```html ... ```).
 """
 
-# Static Route Handlers pointing to BASE_DIR (repository root)
-@app.route('/')
-def serve_index():
+# Static Route Handlers
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    if path != "" and os.path.exists(os.path.join(BASE_DIR, path)):
+        return send_from_directory(BASE_DIR, path)
     return send_from_directory(BASE_DIR, 'index.html')
 
 @app.route('/designer')
 def serve_designer():
     return send_from_directory(BASE_DIR, 'designer.html')
-
-@app.route('/<path:path>')
-def serve_static(path):
-    return send_from_directory(BASE_DIR, path)
 
 
 def extract_urls(text):
