@@ -132,7 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus('🧠 Processing inputs and generating design...', 'info');
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/api/fuse-design', {
+            // FIXED: Changed hardcoded URL to relative path
+            const response = await fetch('/api/fuse-design', {
                 method: 'POST',
                 body: formData
             });
@@ -152,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error(err);
-            showStatus('❌ Backend connection error. Ensure python backend/app.py is running!', 'error');
+            showStatus('❌ Backend connection error. Ensure the server is running!', 'error');
         }
     });
 

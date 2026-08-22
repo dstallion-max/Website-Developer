@@ -3,13 +3,14 @@ import re
 import shutil
 import tempfile
 import zipfile
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from git import Repo
 from google import genai
 from google.genai import types
 
-app = Flask(__name__)
+# Initialize Flask to serve static files from the root directory
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -30,6 +31,20 @@ DESIGN & ASSET RULES FOR A REAL-WORLD LOOK:
 OUTPUT RULE:
 Return ONLY valid HTML starting with <!DOCTYPE html>. Do NOT wrap in markdown code fences (```html ... ```).
 """
+
+# Static Route Handlers for Render Deployment
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/designer')
+def serve_designer():
+    return send_from_directory('.', 'designer.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('.', path)
+
 
 def extract_urls(text):
     if not text:
@@ -230,5 +245,5 @@ def fuse_design():
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
-    print("🚀 Server active on http://127.0.0.1:5000")
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

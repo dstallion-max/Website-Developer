@@ -100,7 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showStatus('🧠 Generating page with requested features...', 'info');
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/api/synthesize', {
+            // FIXED: Changed hardcoded URL to relative path
+            const response = await fetch('/api/synthesize', {
                 method: 'POST',
                 body: formData
             });
@@ -120,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error(err);
-            showStatus('❌ Backend connection error. Ensure python backend/app.py is running!', 'error');
+            showStatus('❌ Backend connection error. Ensure the server is running!', 'error');
         }
     });
 
