@@ -9,8 +9,10 @@ from git import Repo
 from google import genai
 from google.genai import types
 
-# Initialize Flask to serve static files from the root directory
-app = Flask(__name__, static_folder='.', static_url_path='')
+# Set the repository root directory (one folder up from /backend) as static root
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
@@ -32,18 +34,18 @@ OUTPUT RULE:
 Return ONLY valid HTML starting with <!DOCTYPE html>. Do NOT wrap in markdown code fences (```html ... ```).
 """
 
-# Static Route Handlers for Render Deployment
+# Static Route Handlers pointing to BASE_DIR (repository root)
 @app.route('/')
 def serve_index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory(BASE_DIR, 'index.html')
 
 @app.route('/designer')
 def serve_designer():
-    return send_from_directory('.', 'designer.html')
+    return send_from_directory(BASE_DIR, 'designer.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('.', path)
+    return send_from_directory(BASE_DIR, path)
 
 
 def extract_urls(text):
