@@ -19,22 +19,21 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# DYNAMIC, HIGH-EFFICIENCY SYSTEM PROMPT
 UNIVERSAL_DESIGN_SYSTEM_PROMPT = """
 You are an expert Principal Frontend Engineer and UI/UX Architect capable of building ANY website, dashboard, or application requested.
 
 CORE EXECUTION GUIDELINES:
 1. **Dynamic Styling & Palette Control**:
    - Honor the exact user-specified primary and accent colors if provided.
-   - If colors are unspecified or left default, dynamically synthesize a cohesive, modern color scheme (CSS variables: `--primary`, `--accent`, `--surface`, `--bg`, `--text`) tailored specifically to the subject matter.
-   - Use dynamic CSS features: glassmorphism (`backdrop-filter`), CSS Grid/Flexbox layouts, smooth hover micro-interactions, and refined box-shadows.
+   - If colors are unspecified, dynamically synthesize a modern color scheme (CSS variables: `--primary`, `--accent`, `--surface`, `--bg`, `--text`).
+   - Apply dynamic CSS features: glassmorphism (`backdrop-filter`), CSS Grid/Flexbox layouts, hover micro-interactions, and box-shadows.
 
 2. **Tailwind CSS & External Asset Efficiency**:
-   - Use CDN utilities (e.g. `<script src="https://cdn.tailwindcss.com"></script>`) or clean modular CSS so that code remains lightweight, ultra-modern, and never cuts off due to CSS verbosity.
-   - Never use broken placeholder images. Use high-quality Unsplash images with URL parameters (`?auto=format&fit=crop&w=1200&q=80`) and crisp inline SVGs.
+   - Use CDN utilities (e.g. `<script src="https://cdn.tailwindcss.com"></script>`) so code remains lightweight and never truncates due to CSS verbosity.
+   - Never use broken placeholder images. Use dynamic high-resolution Unsplash URLs and inline SVGs.
 
 3. **Complete Production Output**:
-   - Always output fully functional, complete HTML with working Vanilla JavaScript for toggles, tabs, mobile menus, or interactive elements.
+   - Always output fully functional, complete HTML with working Vanilla JavaScript for menus, tabs, modals, and interactivity.
    - The document MUST end with valid closing tags: `</body></html>`. Do NOT wrap response in markdown code blocks (` ```html `).
 """
 
@@ -74,52 +73,58 @@ def extract_code_context(dir_path, max_chars=4000):
     return context[:max_chars]
 
 def generate_robust_code(client, contents, system_instruction):
-    """Generates complete HTML with retries and auto-continuation if output truncates."""
-    models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    """Fallback engine designed to seamlessly route around 429 quota exhaustion limits."""
+    # Ordered by preference, falling back to models with higher free limits or legacy stability
+    models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
     
+    last_error = ""
     for model in models_to_try:
-        for attempt in range(3):
-            try:
-                response = client.models.generate_content(
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.3,
+                    max_output_tokens=8192
+                )
+            )
+            html_text = response.text.replace("```html", "").replace("```", "").strip()
+            
+            # Auto-continuation if cut off
+            if not html_text.endswith("</html>"):
+                continuation_prompt = [
+                    f"Here is partial HTML code that was cut off mid-generation:\n\n{html_text[-3000:]}\n\n"
+                    "CONTINUE EXACTLY from where it was cut off. Complete all remaining markup, scripts, and close with </body></html>."
+                ]
+                cont_response = client.models.generate_content(
                     model=model,
-                    contents=contents,
+                    contents=continuation_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
-                        temperature=0.3,
-                        max_output_tokens=8192
+                        temperature=0.2,
+                        max_output_tokens=4096
                     )
                 )
-                html_text = response.text.replace("```html", "").replace("```", "").strip()
-                
-                # AUTO-CONTINUATION: If generated HTML was cut short before closing tags
-                if not html_text.endswith("</html>"):
-                    continuation_prompt = [
-                        f"Here is partial HTML code that was cut off mid-generation:\n\n{html_text[-3000:]}\n\n"
-                        "CONTINUE EXACTLY from where it was cut off. Complete all remaining markup, scripts, and close with </body></html>. Output ONLY the code continuation without repeating existing code."
-                    ]
-                    cont_response = client.models.generate_content(
-                        model=model,
-                        contents=continuation_prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            temperature=0.2,
-                            max_output_tokens=4096
-                        )
-                    )
-                    cont_text = cont_response.text.replace("```html", "").replace("```", "").strip()
-                    html_text += cont_text
+                cont_text = cont_response.text.replace("```html", "").replace("```", "").strip()
+                html_text += cont_text
 
-                return html_text
-            except Exception as e:
-                error_str = str(e)
-                if "503" in error_str or "UNAVAILABLE" in error_str:
-                    time.sleep(2 * (attempt + 1))
-                    continue
-                elif attempt == 2:
-                    break
-                else:
-                    raise e
-    raise Exception("Generation server busy. Please retry in a few moments.")
+            return html_text
+
+        except Exception as e:
+            error_str = str(e)
+            last_error = error_str
+            # If 429 Quota Exhausted, immediately switch to next model in list
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                print(f"Quota exhausted for model {model}. Auto-switching to next available model...")
+                continue
+            elif "503" in error_str or "UNAVAILABLE" in error_str:
+                time.sleep(2)
+                continue
+            else:
+                continue
+
+    raise Exception(f"All model quotas temporarily busy. Last Error: {last_error}")
 
 def call_gemini(prompt, company_name, primary_color, secondary_color, repo_context="", current_code=""):
     if not GEMINI_API_KEY:
@@ -127,7 +132,6 @@ def call_gemini(prompt, company_name, primary_color, secondary_color, repo_conte
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    # Dynamic color instruction handling
     color_instruction = ""
     if primary_color or secondary_color:
         color_instruction = f"USER COLOR PREFERENCES: Primary Color: {primary_color or 'Auto'}, Accent/Secondary Color: {secondary_color or 'Auto'}"
@@ -142,7 +146,7 @@ def call_gemini(prompt, company_name, primary_color, secondary_color, repo_conte
     - {color_instruction}
 
     REVISION RULE:
-    If existing code is provided, upgrade the visual structure and resolve missing sections without discarding core logic.
+    If existing code is provided, upgrade visual structure and resolve missing sections without discarding core logic.
     """
 
     user_query = f"User Instructions & Requirements: {prompt}\n"
@@ -283,7 +287,6 @@ def fuse_design():
         print(f"Fuse-design error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-# STREAMING ENDPOINT TO PREVENT HTTP 120-SECOND TIMEOUTS
 @app.route('/api/stream-build', methods=['POST'])
 def stream_build():
     data = request.json or {}
@@ -310,19 +313,30 @@ def stream_build():
         user_query += f"\nEXISTING CODE:\n{current_code}\n"
 
     def generate_stream():
-        response_stream = client.models.generate_content_stream(
-            model='gemini-2.5-flash',
-            contents=user_query,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.3,
-                max_output_tokens=8192
-            )
-        )
-        for chunk in response_stream:
-            if chunk.text:
-                cleaned_chunk = chunk.text.replace("```html", "").replace("```", "")
-                yield cleaned_chunk
+        models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
+        for model in models_to_try:
+            try:
+                response_stream = client.models.generate_content_stream(
+                    model=model,
+                    contents=user_query,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.3,
+                        max_output_tokens=8192
+                    )
+                )
+                for chunk in response_stream:
+                    if chunk.text:
+                        cleaned_chunk = chunk.text.replace("```html", "").replace("```", "")
+                        yield cleaned_chunk
+                break
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    continue
+                else:
+                    yield f"<!-- Error streaming content: {error_str} -->"
+                    break
 
     return Response(stream_with_context(generate_stream()), content_type='text/plain')
 
