@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 import zipfile
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -54,15 +55,16 @@ def extract_urls(text):
     url_pattern = r'https?://[^\s,"]+'
     return re.findall(url_pattern, text)
 
-def extract_code_context(dir_path, max_chars=8000):
+def extract_code_context(dir_path, max_chars=3500):
     context = ""
-    for root, _, files in os.walk(dir_path):
+    for root, dirs, files in os.walk(dir_path):
+        dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', 'dist', 'build', '__pycache__']]
         for file in files:
-            if file.endswith(('.html', '.css', '.js', '.jsx', '.tsx')) and 'node_modules' not in root:
+            if file.endswith(('.html', '.css', '.js', '.jsx', '.tsx')) and not file.endswith('.min.js'):
                 try:
                     file_path = os.path.join(root, file)
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        context += f"\n--- File: {file} ---\n{f.read(1500)}\n"
+                        context += f"\n--- File: {file} ---\n{f.read(800)}\n"
                 except Exception:
                     continue
             if len(context) >= max_chars:
@@ -70,6 +72,34 @@ def extract_code_context(dir_path, max_chars=8000):
         if len(context) >= max_chars:
             break
     return context[:max_chars]
+
+def generate_with_fallback(client, contents, system_instruction):
+    """Handles 503 high demand errors via retries and model fallbacks."""
+    models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    
+    for model in models_to_try:
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.2,
+                        max_output_tokens=4096
+                    )
+                )
+                return response.text.replace("```html", "").replace("```", "").strip()
+            except Exception as e:
+                error_str = str(e)
+                if "503" in error_str or "UNAVAILABLE" in error_str:
+                    time.sleep(2 * (attempt + 1))  # Pause 2s, then 4s before retrying
+                    continue
+                elif attempt == 2:
+                    break  # Try next fallback model if retries fail
+                else:
+                    raise e
+    raise Exception("Gemini models are currently experiencing high demand across all tiers. Please try again in a moment.")
 
 def call_gemini(prompt, company_name, primary_color, secondary_color, repo_context="", current_code=""):
     if not GEMINI_API_KEY:
@@ -97,15 +127,7 @@ def call_gemini(prompt, company_name, primary_color, secondary_color, repo_conte
         user_query += f"\nRepository Context:\n{repo_context}"
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=user_query,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.3
-            )
-        )
-        return response.text.replace("```html", "").replace("```", "").strip()
+        return generate_with_fallback(client, user_query, system_instruction)
     except Exception as e:
         return f"<h3>Gemini API Error</h3><pre>{str(e)}</pre>"
 
@@ -232,15 +254,7 @@ def fuse_design():
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.3
-            )
-        )
-        generated_code = response.text.replace("```html", "").replace("```", "").strip()
+        generated_code = generate_with_fallback(client, contents, system_instruction)
         return jsonify({"success": True, "html_code": generated_code})
     except Exception as e:
         print(f"Design endpoint error: {e}")
