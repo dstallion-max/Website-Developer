@@ -10,7 +10,6 @@ from git import Repo
 from google import genai
 from google.genai import types
 
-# Define absolute paths based on directory structure
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
@@ -20,34 +19,25 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# WORLD-CLASS DESIGN SYSTEM PROMPT (Ensures Stripe/Apple-grade output)
-WORLD_CLASS_DESIGN_SYSTEM_PROMPT = """
-You are a Staff Principal Frontend Engineer & Award-Winning Creative Director (ex-Stripe, ex-Apple).
-Your objective is to generate pixel-perfect, hyper-modern, production-grade HTML5 pages that blow users away with clean aesthetics, flawless layout architecture, and rich interactivity.
+# DYNAMIC, HIGH-EFFICIENCY SYSTEM PROMPT
+UNIVERSAL_DESIGN_SYSTEM_PROMPT = """
+You are an expert Principal Frontend Engineer and UI/UX Architect capable of building ANY website, dashboard, or application requested.
 
-DESIGN & ARCHITECTURE GUIDELINES:
-1. **Design Aesthetics**:
-   - Palette: Use modern CSS custom properties (`--primary`, `--accent`, `--surface`, `--text`).
-   - Visual Polish: Apply glassmorphism (`backdrop-filter: blur(12px)`), refined dynamic shadows (`box-shadow: 0 20px 40px -15px rgba(0,0,0,0.08)`), subtle borders (`1px solid rgba(255,255,255,0.15)`), and smooth CSS transitions (`transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1)`).
-   - Typography: Integrate Google Fonts ('Plus Jakarta Sans', 'Inter', or 'Outfit') with clear typographic hierarchy and balanced line heights.
+CORE EXECUTION GUIDELINES:
+1. **Dynamic Styling & Palette Control**:
+   - Honor the exact user-specified primary and accent colors if provided.
+   - If colors are unspecified or left default, dynamically synthesize a cohesive, modern color scheme (CSS variables: `--primary`, `--accent`, `--surface`, `--bg`, `--text`) tailored specifically to the subject matter.
+   - Use dynamic CSS features: glassmorphism (`backdrop-filter`), CSS Grid/Flexbox layouts, smooth hover micro-interactions, and refined box-shadows.
 
-2. **Zero Broken Assets**:
-   - NEVER use `via.placeholder.com` or empty broken image blocks.
-   - Images: Use high-res, specific Unsplash URLs with parameters (`auto=format&fit=crop&w=1200&q=80`).
-   - Icons & Visuals: Render crisp inline SVGs, Lucide-style iconography, and CSS gradients (`background: radial-gradient(...)`).
+2. **Tailwind CSS & External Asset Efficiency**:
+   - Use CDN utilities (e.g. `<script src="https://cdn.tailwindcss.com"></script>`) or clean modular CSS so that code remains lightweight, ultra-modern, and never cuts off due to CSS verbosity.
+   - Never use broken placeholder images. Use high-quality Unsplash images with URL parameters (`?auto=format&fit=crop&w=1200&q=80`) and crisp inline SVGs.
 
-3. **Production UX & Interactivity**:
-   - Include complete, bug-free vanilla JavaScript for mobile navigation toggles, interactive tabbed interfaces, modal popups, drop-downs, and real-time UI state changes.
-   - Use high-converting micro-copy, realistic business metrics ($4.8M ARR, 99.99% SLA, 150k Active Teams), customer testimonials, and realistic feature grids.
-
-4. **COMPLETION & EFFICIENCY RULES**:
-   - Write structured, DRY CSS and semantic HTML (Grid/Flexbox).
-   - Do NOT omit sections or leave `<!-- Add rest of code here -->` comments.
-   - ALWAYS return complete, valid HTML starting with `<!DOCTYPE html>` and ending cleanly with `</html>`.
-   - Do NOT wrap response in markdown code blocks (` ```html `).
+3. **Complete Production Output**:
+   - Always output fully functional, complete HTML with working Vanilla JavaScript for toggles, tabs, mobile menus, or interactive elements.
+   - The document MUST end with valid closing tags: `</body></html>`. Do NOT wrap response in markdown code blocks (` ```html `).
 """
 
-# Static Route Handlers
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
@@ -59,14 +49,13 @@ def serve_frontend(path):
 def serve_designer():
     return send_from_directory(FRONTEND_DIR, 'designer.html')
 
-
 def extract_urls(text):
     if not text:
         return []
     url_pattern = r'https?://[^\s,"]+'
     return re.findall(url_pattern, text)
 
-def extract_code_context(dir_path, max_chars=3000):
+def extract_code_context(dir_path, max_chars=4000):
     context = ""
     for root, dirs, files in os.walk(dir_path):
         dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', 'dist', 'build', '__pycache__', 'coverage']]
@@ -75,7 +64,7 @@ def extract_code_context(dir_path, max_chars=3000):
                 try:
                     file_path = os.path.join(root, file)
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        context += f"\n--- Context File: {file} ---\n{f.read(600)}\n"
+                        context += f"\n--- Context File: {file} ---\n{f.read(800)}\n"
                 except Exception:
                     continue
             if len(context) >= max_chars:
@@ -84,8 +73,8 @@ def extract_code_context(dir_path, max_chars=3000):
             break
     return context[:max_chars]
 
-def generate_with_fallback(client, contents, system_instruction):
-    """Executes call with backoff retries (503 handling) & maximum 8192 token limit."""
+def generate_robust_code(client, contents, system_instruction):
+    """Generates complete HTML with retries and auto-continuation if output truncates."""
     models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
     
     for model in models_to_try:
@@ -96,11 +85,30 @@ def generate_with_fallback(client, contents, system_instruction):
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
-                        temperature=0.2,
-                        max_output_tokens=8192  # Full output capacity to prevent HTML truncation
+                        temperature=0.3,
+                        max_output_tokens=8192
                     )
                 )
                 html_text = response.text.replace("```html", "").replace("```", "").strip()
+                
+                # AUTO-CONTINUATION: If generated HTML was cut short before closing tags
+                if not html_text.endswith("</html>"):
+                    continuation_prompt = [
+                        f"Here is partial HTML code that was cut off mid-generation:\n\n{html_text[-3000:]}\n\n"
+                        "CONTINUE EXACTLY from where it was cut off. Complete all remaining markup, scripts, and close with </body></html>. Output ONLY the code continuation without repeating existing code."
+                    ]
+                    cont_response = client.models.generate_content(
+                        model=model,
+                        contents=continuation_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.2,
+                            max_output_tokens=4096
+                        )
+                    )
+                    cont_text = cont_response.text.replace("```html", "").replace("```", "").strip()
+                    html_text += cont_text
+
                 return html_text
             except Exception as e:
                 error_str = str(e)
@@ -111,7 +119,7 @@ def generate_with_fallback(client, contents, system_instruction):
                     break
                 else:
                     raise e
-    raise Exception("Design engine is under heavy traffic. Please resubmit in a few seconds.")
+    raise Exception("Generation server busy. Please retry in a few moments.")
 
 def call_gemini(prompt, company_name, primary_color, secondary_color, repo_context="", current_code=""):
     if not GEMINI_API_KEY:
@@ -119,47 +127,52 @@ def call_gemini(prompt, company_name, primary_color, secondary_color, repo_conte
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
+    # Dynamic color instruction handling
+    color_instruction = ""
+    if primary_color or secondary_color:
+        color_instruction = f"USER COLOR PREFERENCES: Primary Color: {primary_color or 'Auto'}, Accent/Secondary Color: {secondary_color or 'Auto'}"
+    else:
+        color_instruction = "COLOR INSTRUCTION: Automatically choose a high-converting palette suited for the project intent."
+
     system_instruction = f"""
-    {WORLD_CLASS_DESIGN_SYSTEM_PROMPT}
+    {UNIVERSAL_DESIGN_SYSTEM_PROMPT}
 
-    BRAND & SPECIFICATIONS:
-    - Company / App Name: {company_name}
-    - Primary Color Code: {primary_color}
-    - Accent / Secondary Color: {secondary_color}
+    BRAND & CONTEXT:
+    - App/Site Name: {company_name or 'Auto-Detect / Versatile App'}
+    - {color_instruction}
 
-    PRECISION REVISION RULE:
-    If existing HTML is provided, update and upgrade the page while preserving its structural intent. 
-    Add missing requested components seamlessly without breaking existing styling.
+    REVISION RULE:
+    If existing code is provided, upgrade the visual structure and resolve missing sections without discarding core logic.
     """
 
-    user_query = f"Design Intent & Requirements: {prompt}\n"
+    user_query = f"User Instructions & Requirements: {prompt}\n"
     if current_code:
         user_query += f"\nEXISTING CODEBASE TO BUILD UPON:\n{current_code}\n"
     if repo_context:
-        user_query += f"\nPROJECT REPOSITORY CONTEXT:\n{repo_context}"
+        user_query += f"\nATTACHED REPOSITORY CONTEXT:\n{repo_context}"
 
     try:
-        return generate_with_fallback(client, user_query, system_instruction)
+        return generate_robust_code(client, user_query, system_instruction)
     except Exception as e:
         return f"<h3>Engine Exception</h3><pre>{str(e)}</pre>"
 
 @app.route('/api/synthesize', methods=['POST'])
 def synthesize():
     if request.content_type and 'multipart/form-data' in request.content_type:
-        company_name = request.form.get('company_name', 'Brand')
-        company_about = request.form.get('company_about', 'Modern digital platform')
+        company_name = request.form.get('company_name', '')
+        company_about = request.form.get('company_about', 'Build a modern web application')
         github_url = request.form.get('github_url', '').strip('[]"\' ')
-        primary_color = request.form.get('primary_color', '#0f172a')
-        secondary_color = request.form.get('secondary_color', '#2563eb')
+        primary_color = request.form.get('primary_color', '')
+        secondary_color = request.form.get('secondary_color', '')
         current_code = request.form.get('current_code', '')
         uploaded_file = request.files.get('project_zip')
     else:
         data = request.json or {}
-        company_name = data.get('company_name', 'Brand')
-        company_about = data.get('company_about', 'Modern digital platform')
+        company_name = data.get('company_name', '')
+        company_about = data.get('company_about', 'Build a modern web application')
         github_url = str(data.get('github_url', '')).strip('[]"\' ')
-        primary_color = data.get('primary_color', '#0f172a')
-        secondary_color = data.get('secondary_color', '#2563eb')
+        primary_color = data.get('primary_color', '')
+        secondary_color = data.get('secondary_color', '')
         current_code = data.get('current_code', '')
         uploaded_file = None
 
@@ -177,7 +190,7 @@ def synthesize():
                 zip_ref.extractall(temp_dir)
             repo_context = extract_code_context(temp_dir)
     except Exception as e:
-        print(f"Context extraction exception: {e}")
+        print(f"Context extraction note: {e}")
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -196,10 +209,10 @@ def fuse_design():
     if not GEMINI_API_KEY:
         return jsonify({"success": False, "error": "GEMINI_API_KEY variable missing"}), 500
 
-    company_name = request.form.get('company_name', 'Nexus Systems')
-    company_about = request.form.get('company_about', 'High-conversion SaaS layout')
-    primary_color = request.form.get('primary_color', '#0f172a')
-    secondary_color = request.form.get('secondary_color', '#6366f1')
+    company_name = request.form.get('company_name', '')
+    company_about = request.form.get('company_about', 'Modern web layout')
+    primary_color = request.form.get('primary_color', '')
+    secondary_color = request.form.get('secondary_color', '')
     current_code = request.form.get('current_code', '')
     
     raw_links_text = request.form.get('raw_links', '')
@@ -228,20 +241,19 @@ def fuse_design():
 
     uploaded_images = request.files.getlist('reference_images')
     
+    color_instruction = ""
+    if primary_color or secondary_color:
+        color_instruction = f"USER COLORS: Primary: {primary_color or 'Auto'}, Secondary: {secondary_color or 'Auto'}"
+    else:
+        color_instruction = "COLOR INSTRUCTION: Automatically pick optimal visual colors for the design."
+
     system_instruction = f"""
-    {WORLD_CLASS_DESIGN_SYSTEM_PROMPT}
+    {UNIVERSAL_DESIGN_SYSTEM_PROMPT}
 
     BRAND SPECIFICATIONS:
-    - Company Name: {company_name}
-    - Primary Color: {primary_color}
-    - Secondary Color: {secondary_color}
-
-    CONTEXTUAL INPUTS:
-    - Reference URLs: {', '.join(extracted_urls) if extracted_urls else 'None'}
-    - Extract Status: {'Active' if repo_context else 'None'}
-
-    PRECISION REVISION RULE:
-    If existing HTML is provided, update and upgrade the page while preserving its structural intent.
+    - Site Title: {company_name or 'Dynamic Project'}
+    - {color_instruction}
+    - Reference Links: {', '.join(extracted_urls) if extracted_urls else 'None'}
     """
 
     contents = []
@@ -265,11 +277,54 @@ def fuse_design():
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-        generated_code = generate_with_fallback(client, contents, system_instruction)
+        generated_code = generate_robust_code(client, contents, system_instruction)
         return jsonify({"success": True, "html_code": generated_code})
     except Exception as e:
         print(f"Fuse-design error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+# STREAMING ENDPOINT TO PREVENT HTTP 120-SECOND TIMEOUTS
+@app.route('/api/stream-build', methods=['POST'])
+def stream_build():
+    data = request.json or {}
+    company_about = data.get('prompt', 'Build a modern web application')
+    company_name = data.get('company_name', '')
+    primary_color = data.get('primary_color', '')
+    secondary_color = data.get('secondary_color', '')
+    current_code = data.get('current_code', '')
+
+    if not GEMINI_API_KEY:
+        return jsonify({"error": "GEMINI_API_KEY environment variable missing"}), 500
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    system_instruction = f"""
+    {UNIVERSAL_DESIGN_SYSTEM_PROMPT}
+    - Company Name: {company_name or 'Dynamic Platform'}
+    - Custom Primary: {primary_color or 'Auto-Detect'}
+    - Custom Secondary: {secondary_color or 'Auto-Detect'}
+    """
+
+    user_query = f"Requirements: {company_about}\n"
+    if current_code:
+        user_query += f"\nEXISTING CODE:\n{current_code}\n"
+
+    def generate_stream():
+        response_stream = client.models.generate_content_stream(
+            model='gemini-2.5-flash',
+            contents=user_query,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.3,
+                max_output_tokens=8192
+            )
+        )
+        for chunk in response_stream:
+            if chunk.text:
+                cleaned_chunk = chunk.text.replace("```html", "").replace("```", "")
+                yield cleaned_chunk
+
+    return Response(stream_with_context(generate_stream()), content_type='text/plain')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
